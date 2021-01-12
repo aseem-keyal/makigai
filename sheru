@@ -1,6 +1,6 @@
 #!/bin/sh
 
-echo "sheru v0.0.1"
+echo $'sheru v0.0.1\npress \'h\' for help\n'
 awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {due++} $8 < date {pastdue++} END {OFS=""; print "Due: ",due," card(s) (",pastdue," past due)";}' db.tsv
 
 review() {
@@ -57,11 +57,11 @@ while true; do
 	read -p "> " PROMPT_INPUT
 
 	case $PROMPT_INPUT in
-		r )
+		r|review )
 			echo "Let's review!"; review;;
-		h )
-			echo "Help";;
-		q )
+		h|help )
+			echo $'press \'r\' to review\npress \'h\' for help\npress \'q\' to quit\n';;
+		q|quit )
 			echo "Quiting..."; break;;
 		* )
 			echo "What??";;
