@@ -1,0 +1,28 @@
+#!/bin/sh
+
+
+echo "sheru v0.0.1"
+awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {due++} $8 < date {pastdue++} END {OFS=""; print "Due: ",due," card(s) (",pastdue," past due)";}' db.tsv
+
+review() {
+	awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {print $0} $8 < date {print $0}' db.tsv | shuf | while read -r line; do
+		FRONT=$(echo "$line" | awk -F\t '{print $2}')
+		BACK=$(echo "$line" | awk -F\t '{print $3}')
+		
+	done
+}
+
+while true; do
+	read -p "> " PROMPT_INPUT
+
+	case $PROMPT_INPUT in
+		r )
+			echo "Let's review!"; review;;
+		h )
+			echo "Help";;
+		q )
+			echo "Quiting..."; break;;
+		* )
+			echo "What??";;
+	esac
+done
