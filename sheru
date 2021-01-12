@@ -1,15 +1,26 @@
 #!/bin/sh
 
-
 echo "sheru v0.0.1"
 awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {due++} $8 < date {pastdue++} END {OFS=""; print "Due: ",due," card(s) (",pastdue," past due)";}' db.tsv
 
 review() {
-	awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {print $0} $8 < date {print $0}' db.tsv | shuf | while read -r line; do
+	awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {print $0} $8 < date {print $0}' db.tsv | shuf > to_study.tsv
+	while read -u 3 line; do
 		FRONT=$(echo "$line" | awk -F\t '{print $2}')
 		BACK=$(echo "$line" | awk -F\t '{print $3}')
-		
-	done
+		TAGS=$(echo "$line" | awk -F\t '{print $4}')
+		REPITION=$(echo "$line" | awk -F\t '{print $5}')
+		EASINESS=$(echo "$line" | awk -F\t '{print $6}')
+		INTERVAL=$(echo "$line" | awk -F\t '{print $7}')
+
+		echo "----------------------------------------------------"
+		echo "Front: " $FRONT
+		read -p "Press any key to show back..." REVIEW_INPUT
+		echo "Back: " $BACK
+		read -p "[0] [1] [2] [3] [4] [5] > " REVIEW_INPUT
+		echo "Grade: " $REVIEW_INPUT
+	done 3< to_study.tsv
+	rm to_study.tsv
 }
 
 while true; do
