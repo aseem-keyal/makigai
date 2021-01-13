@@ -1,12 +1,14 @@
 #!/bin/sh
 
+# TODO: colorful output https://superuser.com/questions/1368162/how-to-display-colour-text-in-terminal
 echo $'sheru v0.0.1\npress \'h\' for help\n'
+# TODO: format awk program with indentation
 awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {due++} $8 < date {pastdue++} END {OFS=""; print "Due: ",due," card(s) (",pastdue," past due)";}' db.tsv
 
 review() {
 	awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {print $0} $8 < date {print $0}' db.tsv | shuf > to_study.tsv
 	while read -u 3 line; do
-		# TODO: parse this better
+		# TODO: parse this better with https://stackoverflow.com/questions/1952404/linux-bash-multiple-variable-assignment
 		ID=$(echo "$line" | awk -F\t '{print $1}')
 		FRONT=$(echo "$line" | awk -F\t '{print $2}')
 		BACK=$(echo "$line" | awk -F\t '{print $3}')
@@ -20,6 +22,7 @@ review() {
 		echo "Front: " $FRONT
 		read -n 1 -s -r -p $'Press any key to show back...\n'
 		echo "Back: " $BACK
+		# TODO: include interval next to each grade
 		read -p "[0] [1] [2] [3] [4] [5] > " GRADE
 		echo "Grade: " $GRADE
 
