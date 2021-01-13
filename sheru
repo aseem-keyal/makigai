@@ -4,7 +4,7 @@
 # TODO: remove dependency on bc if possible 
 # TODO: add ability to add cards (add flag -c that takes in a front-back-tags tsv and generates id-rep-easy-interval-date to stdout, this can then be chained with stdin read)
 # TODO: add study by tag feature 
-# TODO: ability to read from stdin (so db.csv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
+# TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: stats (number of cards by tag, forecast, reviews per day, other anki features)
 # TODO: add comments to code
 # TODO: colorful output https://superuser.com/questions/1368162/how-to-display-colour-text-in-terminal
@@ -14,13 +14,68 @@
 
 SEPARATOR="----------------------------------------------------"
 echo $'sheru v0.0.1\npress \'h\' for help\n'
-# TODO: format awk program with indentation
-# TODO: conditional messages (i.e. dont include past due if no past due, display "all caught up!" if no due)
-# TODO: save due card records to variable so awk call on line 23 is not necessary
-awk -F\t -v date="$(date +%Y-%m-%d)" 'BEGIN {due=0; pastdue=0;} $8 == date {due++} $8 < date {pastdue++} END {OFS=""; print "Due: ",due," card(s) (",pastdue," past due)";}' db.tsv
+awk -F\t -v date="$(date +%Y-%m-%d)" '
+	BEGIN {
+		due=0; 
+		pastdue=0;
+	} 
+
+	$8 == date {
+		due++;
+		print $0 > "to_study.tsv";
+	} 
+
+	$8 < date {
+		pastdue++;
+		print $0 > "to_study.tsv";
+	} 
+
+	END {
+		OFS="";
+		if (due > 0 || pastdue > 0) {
+			printf "Due: %s card(s)",due;
+			if (pastdue > 0) printf " (%s past due)",pastdue;
+			printf "\n";
+		}
+		else
+			print "All caught up!"
+	}' db.tsv
+
+SM2() {
+	case $1 in 
+		0|1|2 )	
+			# TODO: break out into a function
+			REPETITION=0
+			INTERVAL=1;;
+		3|4|5 )
+			# TODO: collapse this into if-elseif-else statement
+			# TODO: break it out into a function
+			if [ $REPETITION = 0 ]
+			then
+				INTERVAL=1 
+			fi
+
+			if [ $REPETITION = 1 ]
+			then
+				INTERVAL=6 
+			fi
+
+			if [ $REPETITION -gt 1 ]
+			then
+				INTERVAL=$(echo "(($INTERVAL*$EASINESS) + (1-($INTERVAL*$EASINESS)%1)*(($INTERVAL*$EASINESS)/1 > 1))/1" | bc) 
+			fi
+
+			EASINESS=$(echo "$EASINESS + (0.1 - (5 - $GRADE) * (0.08 + (5 - $GRADE) * 0.02))" | bc)
+			if [ $(echo "$EASINESS < 1.3" | bc) = 1 ]
+			then
+				EASINESS=1.3
+			fi
+			REPETITION=$(echo "$REPETITION+1" | bc);;
+			
+	esac
+}
 
 review() {
-	awk -F\t -v date="$(date +%Y-%m-%d)" '$8 == date {print $0} $8 < date {print $0}' db.tsv | shuf > to_study.tsv
 	while IFS=$'\t' read -r -u 3 ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE; do
 		OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 		echo $SEPARATOR
@@ -28,41 +83,13 @@ review() {
 		read -n 1 -s -r -p $'Press any key to show back...\n'
 		echo "Back: " $BACK
 		# TODO: include interval next to each grade
-		read -p "[0] [1] [2] [3] [4] [5] > " GRADE
+		while !(echo "$GRADE" | grep -q "^[0-5]$"); do 
+			read -n 1 -s -r -p $'[0] [1] [2] [3] [4] [5]\n' GRADE
+		done
+
 		echo "Grade: " $GRADE
-
-		case $GRADE in 
-			0|1|2 )	
-				# TODO: break out into a function
-				REPETITION=0
-				INTERVAL=1
-				DATE=$(date -v +$INTERVAL"d" +%Y-%m-%d);;
-			3|4|5 )
-				# TODO: collapse this into if-elseif-else statement
-				# TODO: break it out into a function
-				if [ $REPETITION = 0 ]
-				then
-					INTERVAL=1 
-				fi
-
-				if [ $REPETITION = 1 ]
-				then
-					INTERVAL=6 
-				fi
-
-				if [ $REPETITION -gt 1 ]
-				then
-					INTERVAL=$(echo "(($INTERVAL*$EASINESS) + (1-($INTERVAL*$EASINESS)%1)*(($INTERVAL*$EASINESS)/1 > 1))/1" | bc) 
-				fi
-
-				EASINESS=$(echo "$EASINESS + (0.1 - (5 - $GRADE) * (0.08 + (5 - $GRADE) * 0.02))" | bc)
-				if [ $(echo "$EASINESS < 1.3" | bc) = 1 ]
-				then
-					EASINESS=1.3
-				fi
-				REPETITION=$(echo "$REPETITION+1" | bc);;
-				
-		esac
+		SM2 $GRADE
+		unset GRADE
 
 		DATE=$(date -v +$INTERVAL"d" +%Y-%m-%d)
 		echo "Repitition: " $REPETITION "Easiness: " $EASINESS "Interval: " $INTERVAL "Date: " $DATE
@@ -70,7 +97,6 @@ review() {
 		sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" db.tsv
 		rm db.tsv.bu
 	done 3< to_study.tsv
-	rm to_study.tsv
 	echo $SEPARATOR
 	echo "Done with review!"
 }
@@ -80,7 +106,7 @@ while true; do
 
 	case $PROMPT_INPUT in
 		r|review )
-			echo "Let's review!"; review;;
+			echo "Let's review!"; review; rm to_study.tsv 2> /dev/null;;
 		h|help )
 			echo $'press \'r\' to review\npress \'h\' for help\npress \'q\' to quit\n';;
 		q|quit )
