@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# TODO: remove dependency on bc if possible
 # TODO: add ability to add cards (add flag -c that takes in a front-back-tags tsv and generates id-rep-easy-interval-date to stdout, this can then be chained with stdin read)
+# TODO: support for multiple decks (sheru -d deck.tsv)
+# TODO: support for switching decks in prompt
 # TODO: add study by tag feature
 # TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: stats (number of cards by tag, forecast, reviews per day, other anki features)
@@ -9,6 +10,7 @@
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq | xargs -I {} grep -c {} db.tsv
 # TODO: add comments to code
 # TODO: explain grading system in help
+# TODO: remove dependency on bc if possible
 # TODO: look to anki's features for inspiration
 # TODO: tweak spaced repitition algorithm
 
@@ -22,12 +24,12 @@ awk -F'\t' -v date="$(date +%Y-%m-%d)" '
 
         $8 == date {
                 due++;
-                print $0 > "to_study.tsv";
+                print $0 > ".tostudy.tmp.csv";
         }
 
         $8 < date {
                 pastdue++;
-                print $0 > "to_study.tsv";
+                print $0 > ".tostudy.tmp.csv";
         }
 
         END {
@@ -68,29 +70,35 @@ SM2() {
 }
 
 review() {
-	while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE <&3; do
-		OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
+	if [ -f ".tostudy.tmp.csv" ]; then
+		echo "Let's review!";
+		while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE <&3; do
+			OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
+			echo "$SEPARATOR"
+			echo "\033[1;32mFront:\033[0m" "$FRONT"
+			printf '\033[3;30mPress enter to show back...\033[0m'
+			read -r _
+			echo "\033[1;32mBack:\033[0m" "$BACK"
+			while ! (echo "$GRADE" | grep -q "^[0-5]$"); do
+				printf '\033[1;32mGrade (0-5): \033[0m'
+				read -r GRADE
+			done
+
+			SM2 "$GRADE"
+			unset GRADE
+
+			DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
+			echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
+			NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
+			sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" db.tsv
+			rm db.tsv.bu
+		done 3< .tostudy.tmp.csv
 		echo "$SEPARATOR"
-		echo "\033[1;32mFront:\033[0m" "$FRONT"
-		printf '\033[3;30mPress enter to show back...\033[0m'
-		read -r _
-		echo "\033[1;32mBack:\033[0m" "$BACK"
-		while ! (echo "$GRADE" | grep -q "^[0-5]$"); do
-		        printf '\033[1;32mGrade (0-5): \033[0m'
-			read -r GRADE
-		done
-
-		SM2 "$GRADE"
-		unset GRADE
-
-		DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
-		echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
-		NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
-		sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" db.tsv
-		rm db.tsv.bu
-	done 3< to_study.tsv
-	echo "$SEPARATOR"
-	echo "Done with review!"
+		echo "Done with review!"
+		rm .tostudy.tmp.csv 2> /dev/null
+	else
+		echo "Nothing to review!"
+	fi
 }
 
 while true; do
@@ -99,7 +107,8 @@ while true; do
 
 	case $PROMPT_INPUT in
 		r|review )
-			echo "Let's review!"; review; rm to_study.tsv 2> /dev/null;;
+			review
+			;;
 		h|help )
 			echo 'press r to review, press h for help, press q to quit';;
 		q|quit )
