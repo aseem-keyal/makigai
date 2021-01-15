@@ -145,7 +145,8 @@ main() {
 				deck_select
 				;;
 			h|help )
-				echo 'press r to review, press t for tag select, press h for help, press q to quit';;
+				printf "press r to review\npress t for tag select\npress d for deck select\npress h for help\npress q to quit\n\n"
+				;;
 			q|quit )
 				echo "Quitting..."; break;;
 			* )
