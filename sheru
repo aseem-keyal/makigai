@@ -1,11 +1,7 @@
 #!/bin/sh
 
-# TODO: add ability to add cards (add flag -i that takes in a front-back-tags tsv and generates id-rep-easy-interval-date to stdout, this can then be chained with stdin read)
-# TODO: support for multiple decks (sheru -d deck.tsv)
-# TODO: support for switching decks in prompt
 # TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: ability to read from stdin for import
-# TODO: ability to specify tag selection regex as a flag
 # TODO: stats (number of cards by tag, forecast, reviews per day, other anki features)
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq | xargs -I {} grep -c {} db.tsv
@@ -45,7 +41,7 @@ create_temp_deck() {
 			}
 			else
 				print "\033[5;32mNo cards due!\033[0m"
-		}' $DECK 
+		}' "$2"
 }
 
 SM2() {
@@ -112,7 +108,25 @@ tag_select() {
 	printf '\n\033[1;32mTag selection regex (or '\''all'\''): \033[0m'
 	read -r TAG
 	if [ "$TAG" == "all" ]; then TAG='.*'; fi
-	create_temp_deck $TAG
+	create_temp_deck "$TAG" "$DECK"
+}
+
+deck_select() {
+	echo "\033[1;32mAvailable decks:\033[0m"
+	ls *.tsv
+	printf '\n\033[1;32mDeck: \033[0m'
+	read -r DECK
+	TAG='.*'
+	create_temp_deck "$TAG" "$DECK"
+}
+
+import() {
+	printf "id\tfront\tback\ttags\trepetition\teasiness\tinterval\tdue\n"
+	awk -F'\t' -v date="$(date +%Y-%m-%d)" '{
+							OFS=FS;
+							system("printf \"$(head -n 1 /dev/random | md5)\t\"");
+							print $0, 0, 2.5, 0, date;
+						}' $1
 }
 
 main() {
@@ -126,6 +140,9 @@ main() {
 				;;
 			t|tag )
 				tag_select
+				;;
+			d|deck )
+				deck_select
 				;;
 			h|help )
 				echo 'press r to review, press t for tag select, press h for help, press q to quit';;
@@ -157,9 +174,9 @@ do
     esac
 done
 if [ ! -z "$IMPORTFLAG" ]; then
-	printf "Option -a specified\n"
+	import "$IMPORT"
 else
 	printf '🐚 \033[1;35msheru \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
-	create_temp_deck $TAG
+	create_temp_deck "$TAG" "$DECK"
 	main
 fi
