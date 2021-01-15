@@ -9,6 +9,7 @@
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq | xargs -I {} grep -c {} db.tsv
 # TODO: add comments to code
 # TODO: explain grading system in help
+# TODO: evil mode (review regardless of date, i.e. consider all cards due)
 # TODO: remove dependency on bc if possible
 # TODO: look to anki's features for inspiration
 # TODO: tweak spaced repitition algorithm
