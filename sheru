@@ -107,7 +107,7 @@ review() {
 
 tag_select() {
 	echo "\033[1;32mAvailable tags:\033[0m"
-	awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq
+	awk -F'\t' '{print $4}' db.tsv | tail -n +2 | tr , '\n' | sort | uniq -c | sort -rn
 	printf '\n\033[1;32mTag selection regex (or '\''all'\''): \033[0m'
 	read -r TAG
 	if [ "$TAG" == "all" ]; then TAG='.*'; fi
