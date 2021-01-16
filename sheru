@@ -5,7 +5,7 @@
 # TODO: stats (number of cards by tag, forecast, reviews per day, other anki features)
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq
         # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq | xargs -I {} grep -c {} db.tsv
-# TODO: evil mode (review regardless of date, i.e. consider all cards due), optional flag value of number of days to review ahead by
+# TODO: total recall mode (optional flag value of number of days to review ahead by)
 # TODO: add comments to code
 # TODO: explain grading system in help
 # TODO: remove dependency on bc if possible
@@ -16,32 +16,53 @@ SEPARATOR="---------------------------------------------------------"
 
 create_temp_deck() {
 	rm .tostudy.tmp.csv 2> /dev/null
-	awk -F'\t' -v date="$(date +%Y-%m-%d)" '
-		BEGIN {
-			due=0;
-			pastdue=0;
-		}
-
-		($8 == date) && ($4 ~ /'"$1"'/) {
-			due++;
-			print $0 > ".tostudy.tmp.csv";
-		}
-
-		$8 < date && ($4 ~ /'"$1"'/) {
-			pastdue++;
-			print $0 > ".tostudy.tmp.csv";
-		}
-
-		END {
-			OFS="";
-			if (due > 0 || pastdue > 0) {
-				printf "\033[5;33mDue: %s card(s)",due;
-				if (pastdue > 0) printf " \033[5;31m(%s past due)",pastdue;
-				printf "\n\033[0m";
+	if [ "$RESCHEDULEFLAG" == "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
+	if [ "$3" = "1" ]; then
+		awk -F'\t' -v date="$(date +%Y-%m-%d)" '
+			BEGIN {
+				loaded=0;
 			}
-			else
-				print "\033[5;32mNo cards due!\033[0m"
-		}' "$2"
+
+			(NR > 1) && ($4 ~ /'"$1"'/) {
+				loaded++;
+				print $0 > ".tostudy.tmp.csv";
+			}
+			END {
+				OFS="";
+				if (loaded > 0) {
+					printf "\033[5;33mTotal recall mode: %s card(s) loaded \n",loaded;
+				}
+				else
+					print "\033[5;32mNo cards due!\033[0m"
+			}' "$2"
+	else
+		awk -F'\t' -v date="$(date +%Y-%m-%d)" '
+			BEGIN {
+				due=0;
+				pastdue=0;
+			}
+
+			(NR > 1) && ($8 == date) && ($4 ~ /'"$1"'/) {
+				due++;
+				print $0 > ".tostudy.tmp.csv";
+			}
+
+			(NR > 1) && ($8 < date) && ($4 ~ /'"$1"'/) {
+				pastdue++;
+				print $0 > ".tostudy.tmp.csv";
+			}
+
+			END {
+				OFS="";
+				if (due > 0 || pastdue > 0) {
+					printf "\033[5;33mDue: %s card(s)",due;
+					if (pastdue > 0) printf " \033[5;31m(%s past due)",pastdue;
+					printf "\n\033[0m";
+				}
+				else
+					print "\033[5;32mNo cards due!\033[0m"
+			}' "$2"
+	fi
 }
 
 validate_deck() {
@@ -107,16 +128,17 @@ review() {
 
 			SM2 "$GRADE"
 			unset GRADE
-
-			DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
-			echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
-			NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
-			sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
-			rm "$DECK".bu
+			if [ "$RESCHEDULEFLAG" != "0" ]; then
+				DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
+				echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
+				NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
+				sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
+				rm "$DECK".bu
+			fi
 		done 3< .tostudy.tmp.csv
 		echo "$SEPARATOR"
 		echo "Done with review!"
-		rm .tostudy.tmp.csv 2> /dev/null
+		if [ "$RESCHEDULEFLAG" != "0" ]; then rm .tostudy.tmp.csv 2> /dev/null; fi
 	else
 		echo "Nothing to review!"
 	fi
@@ -128,7 +150,7 @@ tag_select() {
 	printf '\n\033[1;32mTag selection regex (or '\''all'\''): \033[0m'
 	read -r TAG
 	if [ "$TAG" = "all" ]; then TAG='.*'; fi
-	create_temp_deck "$TAG" "$DECK"
+	create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
 }
 
 deck_select() {
@@ -137,7 +159,7 @@ deck_select() {
 	printf '\n\033[1;32mDeck: \033[0m'
 	read -r DECK
 	TAG='.*'
-	create_temp_deck "$TAG" "$DECK"
+	create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
 }
 
 import() {
@@ -179,7 +201,9 @@ DECK='db.tsv'
 TAG='.*'
 
 IMPORTFLAG=
-while getopts i:d:t:h name
+TOTALRECALLFLAG=
+RESCHEDULEFLAG=
+while getopts i:d:f:htr name
 do
     case $name in
     d)
@@ -194,9 +218,19 @@ do
 	IMPORTFLAG=1
 	IMPORT="$OPTARG";;
     t)
+	TOTALRECALLFLAG=1;;
+    r)
+	RESCHEDULEFLAG=0;;
+    f)
 	TAG="$OPTARG";;
     h|?)
-	printf "Usage: %s: [-h] [-d deckfile] [-t tagregex] [-i cardfile]\n" "$0"
+	printf "Usage: %s: [-h] [-t] [-r] [-d deckfile] [-f tagregex] [-i cardfile]
+	-h\thelp
+	-t\ttotal recall mode (due date ignored)
+	-r\tno rescheduling (deck is left unchanged)
+	-d\tselect deck file (default is db.tsv)
+	-f\tfilter deck by tag (default is all tags)
+	-i\timport mode (takes in tsv of front, back, and tags)\n" "$0"
 	exit 2;;
     esac
 done
@@ -206,7 +240,7 @@ else
 	validate_deck "$DECK"
 	if [ "$VALID" = "valid" ]; then
 		printf '🐚 \033[1;35msheru \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
-		create_temp_deck "$TAG" "$DECK"
+		create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
 		main
 	else
 		echo "$VALID"
