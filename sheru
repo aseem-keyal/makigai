@@ -16,7 +16,7 @@ SEPARATOR="---------------------------------------------------------"
 
 create_temp_deck() {
 	rm .tostudy.tmp.csv 2> /dev/null
-	if [ "$RESCHEDULEFLAG" == "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
+	if [ "$RESCHEDULEFLAG" = "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
 	if [ "$3" = "1" ]; then
 		awk -F'\t' -v date="$(date +%Y-%m-%d)" '
 			BEGIN {
