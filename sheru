@@ -2,9 +2,6 @@
 
 # TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: ability to read from stdin for import
-# TODO: stats (number of cards by tag, forecast, reviews per day, other anki features)
-        # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq
-        # awk -F'\t' 'NR > 1 {print $4}' db.tsv | tr , '\n' | sort | uniq | xargs -I {} grep -c {} db.tsv
 # TODO: total recall mode (optional flag value of number of days to review ahead by)
 # TODO: add comments to code
 # TODO: explain grading system in help
@@ -153,6 +150,13 @@ tag_select() {
 	create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
 }
 
+stats() {
+	echo "\033[1;32mAvailable tags:\033[0m"
+	awk -F'\t' '{print $4}' "$DECK" | tail -n +2 | tr , '\n' | sort | uniq -c | sort -rn
+	echo "\033[1;32mDue dates:\033[0m"
+	awk -F'\t' 'NR > 1 {print $8}' db.tsv | sort | uniq -c
+}
+
 deck_select() {
 	echo "\033[1;32mAvailable decks:\033[0m"
 	ls ./*.tsv
@@ -185,6 +189,9 @@ main() {
 				;;
 			d|deck )
 				deck_select
+				;;
+			s|stats )
+				stats
 				;;
 			h|help )
 				printf "press r to review\npress t for tag select\npress d for deck select\npress h for help\npress q to quit\n\n"
