@@ -45,8 +45,8 @@ create_temp_deck() {
 }
 
 validate_deck() {
-	TOTAL_LINES=$(printf $(tail -n +2 "$1" | wc -l))
-	VALID_LINES=$(printf $(awk -F'\t' '
+	TOTAL_LINES=$(printf "%s" "$(tail -n +2 "$1" | wc -l)")
+	VALID_LINES=$(printf "%s" "$(awk -F'\t' '
 		(NR > 1) &&
 		(NF == 8) &&
 		($1 ~ /^[a-f0-9]{32}$/) &&
@@ -56,8 +56,8 @@ validate_deck() {
 		($7 ~ /^[0-9]+$/) &&
 		($8 ~ /[0-9]{4}-[0-9]{2}-[0-9]{2}(\n|$)/) {
 				print $0
-		}' "$1" | wc -l))
-	if [ "$TOTAL_LINES" == "$VALID_LINES" ]; then
+		}' "$1" | wc -l)")
+	if [ "$TOTAL_LINES" = "$VALID_LINES" ]; then
 		VALID="valid"
 	else
 		VALID="\033[5;31mDeck invalid\033[0m"
@@ -111,8 +111,8 @@ review() {
 			DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
 			echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
 			NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
-			sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" $DECK
-			rm $DECK.bu
+			sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
+			rm "$DECK".bu
 		done 3< .tostudy.tmp.csv
 		echo "$SEPARATOR"
 		echo "Done with review!"
@@ -124,16 +124,16 @@ review() {
 
 tag_select() {
 	echo "\033[1;32mAvailable tags:\033[0m"
-	awk -F'\t' '{print $4}' $DECK | tail -n +2 | tr , '\n' | sort | uniq -c | sort -rn
+	awk -F'\t' '{print $4}' "$DECK" | tail -n +2 | tr , '\n' | sort | uniq -c | sort -rn
 	printf '\n\033[1;32mTag selection regex (or '\''all'\''): \033[0m'
 	read -r TAG
-	if [ "$TAG" == "all" ]; then TAG='.*'; fi
+	if [ "$TAG" = "all" ]; then TAG='.*'; fi
 	create_temp_deck "$TAG" "$DECK"
 }
 
 deck_select() {
 	echo "\033[1;32mAvailable decks:\033[0m"
-	ls *.tsv
+	ls ./*.tsv
 	printf '\n\033[1;32mDeck: \033[0m'
 	read -r DECK
 	TAG='.*'
@@ -146,7 +146,7 @@ import() {
 							OFS=FS;
 							system("printf \"$(head -n 1 /dev/random | md5)\t\"");
 							print $0, 0, 2.5, 0, date;
-						}' $1
+						}' "$1"
 }
 
 main() {
@@ -178,18 +178,15 @@ main() {
 DECK='db.tsv'
 TAG='.*'
 
-DECKFLAG=
 IMPORTFLAG=
-TAGFLAG=
 while getopts i:d:t:h name
 do
     case $name in
     d)
 	if [ ! -f "$OPTARG" ]; then
-		printf "\033[5;31mNo deck called $OPTARG found\033[0m\n"
+		printf "\033[5;31mNo deck called %s found\033[0m\n" "$OPTARG"
 		exit 1;
 	else
-		DECKFLAG=1
 		DECK="$OPTARG"
 	fi
 	;;
@@ -197,18 +194,17 @@ do
 	IMPORTFLAG=1
 	IMPORT="$OPTARG";;
     t)
-	TAGFLAG=1
 	TAG="$OPTARG";;
-    ?|h)
-	printf "Usage: %s: [-h] [-d deckfile] [-t tagregex] [-i cardfile]\n" $0
+    h|?)
+	printf "Usage: %s: [-h] [-d deckfile] [-t tagregex] [-i cardfile]\n" "$0"
 	exit 2;;
     esac
 done
-if [ ! -z "$IMPORTFLAG" ]; then
+if [ -n "$IMPORTFLAG" ]; then
 	import "$IMPORT"
 else
 	validate_deck "$DECK"
-	if [ "$VALID" == "valid" ]; then
+	if [ "$VALID" = "valid" ]; then
 		printf '🐚 \033[1;35msheru \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
 		create_temp_deck "$TAG" "$DECK"
 		main
