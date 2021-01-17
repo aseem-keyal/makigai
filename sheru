@@ -205,7 +205,12 @@ main() {
 				stats
 				;;
 			h|help )
-				printf "press r to review\npress t for tag select\npress d for deck select\npress h for help\npress q to quit\n\n"
+				printf "type review/r to review
+press tag/t for tag select
+press deck/d for deck select
+press stats/s for stats
+press help/h for help
+press quit/q to quit\n\n"
 				;;
 			q|quit )
 				echo "Quitting..."; break;;
