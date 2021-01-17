@@ -1,8 +1,9 @@
-#!/bin/sh
+#!/bin/dash
 
 # TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: ability to read from stdin for import
 # TODO: total recall mode (optional flag value of number of days to review ahead by)
+# TODO: patches to either add or remove features (suckless philosophy)
 # TODO: add comments to code
 # TODO: explain grading system in help
 # TODO: remove dependency on bc if possible
