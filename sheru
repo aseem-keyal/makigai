@@ -1,4 +1,4 @@
-#!/bin/dash
+#!/bin/sh
 
 # TODO: ability to read from stdin (so db.tsv can be sliced and diced in a particular way and then used as the deck, i.e. custom study sessions in anki)
 # TODO: ability to read from stdin for import
@@ -124,6 +124,7 @@ review() {
 	if [ -f ".tostudy.tmp.csv" ]; then
 		echo "Let's review!";
 		while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE <&3; do
+			if [ "$ZENFLAG" = "1" ]; then clear; fi
 			OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 			echo "$SEPARATOR"
 			echo "\033[1;32mFront:\033[0m" "$FRONT"
@@ -143,6 +144,10 @@ review() {
 				NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 				sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
 				rm "$DECK".bu
+			fi
+			if [ "$ZENFLAG" = "1" ]; then
+				printf '\033[3;30mPress enter to show next card...\033[0m'
+				read -r _
 			fi
 		done 3< .tostudy.tmp.csv
 		echo "$SEPARATOR"
@@ -227,7 +232,8 @@ TAG='.*'
 IMPORTFLAG=
 TOTALRECALLFLAG=
 RESCHEDULEFLAG=
-while getopts i:d:f:htr name
+ZENFLAG=
+while getopts i:d:f:htrz name
 do
     case $name in
     d)
@@ -245,6 +251,8 @@ do
 	TOTALRECALLFLAG=1;;
     r)
 	RESCHEDULEFLAG=0;;
+    z)
+	ZENFLAG=1;;
     f)
 	TAG="$OPTARG";;
     h|?)
@@ -252,6 +260,7 @@ do
 	-h\thelp
 	-t\ttotal recall mode (due date ignored)
 	-r\tno rescheduling (deck is left unchanged)
+	-z\tzen mode (screen clears between each review)
 	-d\tselect deck file (default is db.tsv)
 	-f\tfilter deck by tag (default is all tags)
 	-i\timport mode (takes in tsv of front, back, and tags)\n" "$0"
