@@ -10,8 +10,6 @@
 # TODO: look to anki's features for inspiration
 # TODO: tweak spaced repitition algorithm
 
-SEPARATOR="---------------------------------------------------------"
-
 create_temp_deck() {
 	rm .tostudy.tmp.csv 2> /dev/null
 	if [ "$RESCHEDULEFLAG" = "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
@@ -121,6 +119,7 @@ get_date() {
 }
 
 review() {
+	SEPARATOR="---------------------------------------------------------"
 	if [ -f ".tostudy.tmp.csv" ]; then
 		echo "Let's review!";
 		while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE <&3; do
@@ -178,9 +177,16 @@ deck_select() {
 	echo "\033[1;32mAvailable decks:\033[0m"
 	ls ./*.tsv
 	printf '\n\033[1;32mDeck: \033[0m'
+	OLD_DECK=$DECK
 	read -r DECK
-	TAG='.*'
-	create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+	validate_deck "$DECK"
+	if [ "$VALID" = "valid" ]; then
+		TAG='.*'
+		create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+	else
+		echo "$VALID\033[5;31m, switching back to previous deck"
+		DECK=$OLD_DECK
+	fi
 }
 
 import() {
@@ -272,7 +278,7 @@ if [ -n "$IMPORTFLAG" ]; then
 else
 	validate_deck "$DECK"
 	if [ "$VALID" = "valid" ]; then
-		printf '🐚 \033[1;35msheru \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
+		printf '🐚 \033[1;35mmakigai \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
 		create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
 		main
 	else
