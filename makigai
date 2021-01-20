@@ -10,7 +10,7 @@
 
 create_temp_deck() {
 	if [ "$RESCHEDULEFLAG" = "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
-	AWK_PATTERN="(NR > 1)"
+	if [ "$STDINFLAG" -eq 1 ]; then AWK_PATTERN="(NR > 0)"; else AWK_PATTERN="(NR > 1)"; fi
 	if [ "$1" != ".*" ]; then AWK_PATTERN="$AWK_PATTERN && (\$4 ~ /$1/)"; fi
 	if [ "$3" != "1" ]; then AWK_PATTERN="$AWK_PATTERN && (\$8 <= date)"; fi
 	if [ "$STDINFLAG" -eq 1 ]; then
@@ -170,7 +170,7 @@ deck_select() {
 }
 
 import() {
-	printf "id\tfront\tback\ttags\trepetition\teasiness\tinterval\tdue\n"
+	if [ "$RESCHEDULEFLAG" -eq 0 ]; then printf "id\tfront\tback\ttags\trepetition\teasiness\tinterval\tdue\n"; fi
 	if [ "$STDINFLAG" -eq 1 ]; then
 		cat | awk -F'\t' -v date="$(date +%Y-%m-%d)" '{OFS=FS;
 								system("printf \"$(head -n 1 /dev/random | md5)\t\"");
@@ -221,7 +221,7 @@ TAG='.*'
 
 IMPORTFLAG=
 TOTALRECALLFLAG=
-RESCHEDULEFLAG=
+RESCHEDULEFLAG=1
 ZENFLAG=
 STDINFLAG=
 if [ -t 0 ]; then STDINFLAG=0; else STDINFLAG=1; fi
