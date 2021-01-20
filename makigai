@@ -18,9 +18,9 @@ create_temp_deck() {
 	if [ "$3" != "1" ]; then AWK_PATTERN="$AWK_PATTERN && (\$8 <= date)"; fi
 	awk -F'\t' -v date="$(date +%Y-%m-%d)" "$AWK_PATTERN" "$2" > .tostudy.tmp.csv
 	if [ "$3" != "1" ]; then
-		DUE=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" '$8 == date {i++} END {if (i > 0) print i}' .tostudy.tmp.csv)
-		PAST_DUE=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" '$8 < date {i++} END {if (i > 0) print i}' .tostudy.tmp.csv)
-		if [ -z "$PAST_DUE" ] && [ -z "$DUE" ]; then
+		DUE=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 == date {i++} END {print i}' .tostudy.tmp.csv)
+		PAST_DUE=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 < date {i++} END {print i}' .tostudy.tmp.csv)
+		if [ "$DUE" -gt 0 ] || [ "$DUE" -gt 0 ]; then
 			printf '\033[5;32mNo cards due!\033[0m\n'
 		else
 			printf '\033[5;33mDue today: %s card(s)' "$DUE"
