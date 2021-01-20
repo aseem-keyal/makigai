@@ -114,8 +114,14 @@ review() {
 				echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
 				NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 				# TODO: if $ID is not in deck then add to deck
-				sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
-				rm "$DECK".bu
+				ID_OCCURENCES=$(grep -c "$ID" "$DECK")
+				if [ "$ID_OCCURENCES" -gt 0 ]; then
+					sed -i.bu "s/$OLD_LINE/$NEW_LINE/g" "$DECK"
+					rm "$DECK".bu
+				else
+					echo "\033[5;33mCard ID not found in deck $DECK, adding to deck\033[0m"
+					echo "$NEW_LINE" >> "$DECK"
+				fi
 			fi
 			if [ "$ZENFLAG" = "1" ]; then
 				printf '\033[3;30mPress enter to show next card...\033[0m'
