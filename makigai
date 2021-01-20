@@ -135,12 +135,16 @@ review() {
 				read -r _ < /dev/tty
 			fi
 			CARD_NUMBER=$((CARD_NUMBER+1))
+			if [ "$RESCHEDULEFLAG" != "0" ] && [ "$CARD_NUMBER" -gt "$NUM_CARDS" ]; then 
+				DECK_LINES=
+				echo "$SEPARATOR"
+			fi
 		done
-		echo "$SEPARATOR"
-		echo "\033[5;32mDone with review!\033[0m"
-		if [ "$RESCHEDULEFLAG" != "0" ]; then DECK_LINES=; fi
+		if [ "$RESCHEDULEFLAG" != "0" ]; then 
+			create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+		fi
 	else
-		echo "Nothing to review!"
+		echo "\033[5;32mNothing to review!\033[0m"
 	fi
 	unset SEPARATOR
 }
