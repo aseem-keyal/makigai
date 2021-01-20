@@ -93,12 +93,13 @@ get_date() {
 review() {
 	SEPARATOR="---------------------------------------------------------"
 	if [ -n "$DECK_LINES" ]; then
-		echo "Let's review!";
-		echo "$DECK_LINES" | while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE; do
+		CARD_NUMBER=1
+		CARD_TOTAL=$(echo "$DECK_LINES" | awk -F'\t' 'END {print NR}')
+		echo "Let's review!"; echo "$DECK_LINES" | while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE; do
 			if [ "$ZENFLAG" = "1" ]; then clear; fi
 			OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 			echo "$SEPARATOR"
-			echo "\033[1;32mFront:\033[0m" "$FRONT"
+			printf '\033[1;32mFront:\033[0m %s \033[5;34m(#%s/%s)\033[0m\n' "$FRONT" "$CARD_NUMBER" "$CARD_TOTAL"
 			printf '\033[3;30mPress enter to show back...\033[0m'
 			read -r _ < /dev/tty
 			echo "\033[1;32mBack:\033[0m" "$BACK"
@@ -126,9 +127,10 @@ review() {
 				printf '\033[3;30mPress enter to show next card...\033[0m'
 				read -r _ < /dev/tty
 			fi
+			CARD_NUMBER=$(echo "$CARD_NUMBER+1" | bc)
 		done
 		echo "$SEPARATOR"
-		echo "Done with review!"
+		echo "\033[5;32mDone with review!\033[0m"
 		if [ "$RESCHEDULEFLAG" != "0" ]; then DECK_LINES=; fi
 	else
 		echo "Nothing to review!"
