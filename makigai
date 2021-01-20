@@ -38,19 +38,20 @@ create_temp_deck() {
 
 validate_deck() {
 	ALL_LINES=$(cat "$1")
-	TOTAL_LINES=$(echo "$ALL_LINES" | awk -F'\t' '(NR > 1) {i++} END {print i}')
+	if [ "$1" = "-" ]; then AWK_PATTERN="(NR > 0)"; else AWK_PATTERN="(NR > 1)"; fi
+	TOTAL_LINES=$(echo "$ALL_LINES" | awk -F'\t' "$AWK_PATTERN"' {i++} END {print i}')
 	# mawk (default on debian and ubuntu systems) does not support regex repetition braces, which makes ($1 ~ /^[a-f0-9]$/) not work
 	# this is why im using these extra two checks with grep
 	# the md5 id regex could just use /^[a-f0-9]+$/, but then ids greater or less than 32 chars long would match
 	VALID1=$(echo "$ALL_LINES" | awk -F'\t' '
-		(NR > 1) &&
+		'"$AWK_PATTERN"' &&
 		(NF == 8) &&
 		($4 ~ /^[a-zA-Z0-9,-]*$/) &&
 		($5 ~ /^[0-9]+$/) &&
 		($6 >= 1.3) &&
 		($7 ~ /^[0-9]+$/)   { i++ } END { print i }')
-	VALID2=$(echo "$ALL_LINES" | awk -F'\t' 'NR > 1 { print $8 }' | grep -c "^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}$")
-	VALID3=$(echo "$ALL_LINES" | awk -F'\t' 'NR > 1 { print $1 }' | grep -c "^[a-f0-9]\{32\}$")
+	VALID2=$(echo "$ALL_LINES" | awk -F'\t' "$AWK_PATTERN"' { print $8 }' | grep -c "^[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}$")
+	VALID3=$(echo "$ALL_LINES" | awk -F'\t' "$AWK_PATTERN"' { print $1 }' | grep -c "^[a-f0-9]\{32\}$")
 	if [ "$TOTAL_LINES" = "$VALID1" ] && [ "$TOTAL_LINES" = "$VALID2" ] && [ "$TOTAL_LINES" = "$VALID3" ]; then
 		VALID="valid"
 	elif [ "$1" != "-" ]; then
