@@ -18,6 +18,7 @@ create_temp_deck() {
 	else
 		DECK_LINES=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" "$AWK_PATTERN" "$2")
 	fi
+	NUM_CARDS=$(echo "$DECK_LINES" | awk -F'\t' 'END {print NR}')
 	if [ "$3" != "1" ]; then
 		DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 == date {i++} END {print i}')
 		PAST_DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 < date {i++} END {print i}')
@@ -30,17 +31,13 @@ create_temp_deck() {
 			printf '\033[0m\n'
 		fi
 	else
-		NUM_CARDS=$(echo "$DECK_LINES" | awk -F'\t' 'END {print NR}')
 		printf '\033[5;33mTotal recall mode: %s cards loaded\n' "$NUM_CARDS"
 	fi
+	unset DUE PAST_DUE
 }
 
 validate_deck() {
-	if [ "$1" != "-" ]; then
-		ALL_LINES=$(cat "$1")
-	else
-		ALL_LINES=$(cat)
-	fi
+	ALL_LINES=$(cat "$1")
 	TOTAL_LINES=$(echo "$ALL_LINES" | awk -F'\t' '(NR > 1) {i++} END {print i}')
 	# mawk (default on debian and ubuntu systems) does not support regex repetition braces, which makes ($1 ~ /^[a-f0-9]$/) not work
 	# this is why im using these extra two checks with grep
@@ -56,12 +53,15 @@ validate_deck() {
 	VALID3=$(echo "$ALL_LINES" | awk -F'\t' 'NR > 1 { print $1 }' | grep -c "^[a-f0-9]\{32\}$")
 	if [ "$TOTAL_LINES" = "$VALID1" ] && [ "$TOTAL_LINES" = "$VALID2" ] && [ "$TOTAL_LINES" = "$VALID3" ]; then
 		VALID="valid"
-	else
-		VALID="\033[5;31mDeck invalid\033[0m"
+	elif [ "$1" != "-" ]; then
+		VALID="\033[5;31mDeck file '$1' invalid\033[0m"
+	elif [ "$1" = "-" ]; then
+		VALID="\033[5;31mDeck from stdin invalid\033[0m"
 	fi
 	if [ "$STDINFLAG" -eq 1 ] && [ "$VALID" = "valid" ] && [ "$1" != "-" ]; then
 		validate_deck "-"
 	fi
+	unset ALL_LINES TOTAL_LINES VALID1 VALID2 VALID3
 }
 
 SM2() {
@@ -102,12 +102,11 @@ review() {
 	SEPARATOR="---------------------------------------------------------"
 	if [ -n "$DECK_LINES" ]; then
 		CARD_NUMBER=1
-		CARD_TOTAL=$(echo "$DECK_LINES" | awk -F'\t' 'END {print NR}')
 		echo "Let's review!"; echo "$DECK_LINES" | while IFS="$(printf '\t')" read -r ID FRONT BACK TAGS REPETITION EASINESS INTERVAL DATE; do
 			if [ "$ZENFLAG" = "1" ]; then clear; fi
 			OLD_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 			echo "$SEPARATOR"
-			printf '\033[1;32mFront:\033[0m %s \033[5;34m(#%s/%s)\033[0m\n' "$FRONT" "$CARD_NUMBER" "$CARD_TOTAL"
+			printf '\033[1;32mFront:\033[0m %s \033[5;34m(#%s/%s)\033[0m\n' "$FRONT" "$CARD_NUMBER" "$NUM_CARDS"
 			printf '\033[3;30mPress enter to show back...\033[0m'
 			read -r _ < /dev/tty
 			echo "\033[1;32mBack:\033[0m" "$BACK"
@@ -143,6 +142,7 @@ review() {
 	else
 		echo "Nothing to review!"
 	fi
+	unset SEPARATOR
 }
 
 tag_select() {
@@ -175,6 +175,7 @@ deck_select() {
 		echo "$VALID\033[5;31m, switching back to previous deck"
 		DECK=$OLD_DECK
 	fi
+	unset OLD_DECK
 }
 
 import() {
