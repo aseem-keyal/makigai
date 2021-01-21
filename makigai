@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# TODO: total recall mode (optional flag value of number of days to review ahead by)
 # TODO: patches to either add or remove features (suckless philosophy)
 # TODO: add comments to code
 # TODO: explain grading system in help
@@ -9,19 +8,23 @@
 # TODO: tweak spaced repitition algorithm
 
 create_temp_deck() {
+	DATE=$(date +%Y-%m-%d)
+	if [ -n "$AHEADDAYS" ]; then get_date "$AHEADDAYS"; fi
+
 	if [ "$RESCHEDULEFLAG" = "0" ]; then echo "\033[5;31mRescheduling off, deck will not be written to\033[0m"; fi
+
 	if [ "$STDINFLAG" -eq 1 ]; then AWK_PATTERN="(NR > 0)"; else AWK_PATTERN="(NR > 1)"; fi
-	if [ "$1" != ".*" ]; then AWK_PATTERN="$AWK_PATTERN && (\$4 ~ /$1/)"; fi
-	if [ "$3" != "1" ]; then AWK_PATTERN="$AWK_PATTERN && (\$8 <= date)"; fi
+	if [ "$TAG" != ".*" ]; then AWK_PATTERN="$AWK_PATTERN && (\$4 ~ /$TAG/)"; fi
+	if [ "$TOTALRECALLFLAG" != "1" ] || [ -n "$AHEADDAYS" ]; then AWK_PATTERN="$AWK_PATTERN && (\$8 <= date)"; fi
 	if [ "$STDINFLAG" -eq 1 ]; then
-		DECK_LINES=$(cat | awk -F'\t' -v date="$(date +%Y-%m-%d)" "$AWK_PATTERN")
+		DECK_LINES=$(cat | awk -F'\t' -v date="$DATE" "$AWK_PATTERN")
 	else
-		DECK_LINES=$(awk -F'\t' -v date="$(date +%Y-%m-%d)" "$AWK_PATTERN" "$2")
+		DECK_LINES=$(awk -F'\t' -v date="$DATE" "$AWK_PATTERN" "$DECK")
 	fi
 	NUM_CARDS=$(echo "$DECK_LINES" | awk -F'\t' 'END {print NR}')
-	if [ "$3" != "1" ]; then
-		DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 == date {i++} END {print i}')
-		PAST_DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$(date +%Y-%m-%d)" 'BEGIN {i=0} $8 < date {i++} END {print i}')
+	if [ "$TOTALRECALLFLAG" != "1" ] && [ -z "$AHEADDAYS" ]; then
+		DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$DATE" 'BEGIN {i=0} $8 == date {i++} END {print i}')
+		PAST_DUE=$(echo "$DECK_LINES" | awk -F'\t' -v date="$DATE" 'BEGIN {i=0} $8 < date {i++} END {print i}')
 		if [ -z "$DECK_LINES" ]; then
 			printf '\033[5;32mNo cards due!\033[0m\n'
 		else
@@ -31,7 +34,9 @@ create_temp_deck() {
 			printf '\033[0m\n'
 		fi
 	else
-		printf '\033[5;33mTotal recall mode: %s cards loaded\n' "$NUM_CARDS"
+		if [ "$TOTALRECALLFLAG" = "1" ]; then printf '\033[5;33mTotal recall mode: '; fi
+		if [ -n "$AHEADDAYS" ]; then printf '\033[5;33mReviewing ahead by %s days: ' "$AHEADDAYS"; fi
+		printf '%s cards loaded\n' "$NUM_CARDS"
 	fi
 	unset DUE PAST_DUE
 }
@@ -93,9 +98,9 @@ SM2() {
 
 get_date() {
 	if [ "$(uname)" = "Linux" ]; then
-		DATE=$(date -d "+$INTERVAL days" +%Y-%m-%d)
+		DATE=$(date -d "+$1 days" +%Y-%m-%d)
 	else
-		DATE=$(date -v +"$INTERVAL""d" +%Y-%m-%d)
+		DATE=$(date -v +"$1""d" +%Y-%m-%d)
 	fi
 }
 
@@ -119,7 +124,7 @@ review() {
 			SM2 "$GRADE"
 			unset GRADE
 			if [ "$RESCHEDULEFLAG" != "0" ]; then
-				get_date
+				get_date "$INTERVAL"
 				echo "\033[1;34mRepetition:\033[0m" "$REPETITION" "\033[1;34mEasiness:\033[0m" "$EASINESS" "\033[1;34mInterval:\033[0m" "$INTERVAL" "\033[1;34mDate:\033[0m" "$DATE"
 				NEW_LINE="$ID	$FRONT	$BACK	$TAGS	$REPETITION	$EASINESS	$INTERVAL	$DATE"
 				ID_OCCURENCES=$(grep -c "$ID" "$DECK")
@@ -137,12 +142,11 @@ review() {
 			fi
 			CARD_NUMBER=$((CARD_NUMBER+1))
 			if [ "$RESCHEDULEFLAG" != "0" ] && [ "$CARD_NUMBER" -gt "$NUM_CARDS" ]; then 
-				DECK_LINES=
 				echo "$SEPARATOR"
 			fi
 		done
-		if [ "$RESCHEDULEFLAG" != "0" ]; then 
-			create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+		if [ "$RESCHEDULEFLAG" != "0" ] && [ -z "$AHEADDAYS" ] && [ "$TOTALRECALLFLAG" -ne 1 ]; then 
+			create_temp_deck
 		fi
 	else
 		echo "\033[5;32mNothing to review!\033[0m"
@@ -156,7 +160,7 @@ tag_select() {
 	printf '\n\033[1;32mTag selection regex (or '\''all'\''): \033[0m'
 	read -r TAG < /dev/tty
 	if [ "$TAG" = "all" ]; then TAG='.*'; fi
-	create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+	create_temp_deck
 }
 
 stats() {
@@ -175,7 +179,7 @@ deck_select() {
 	validate_deck "$DECK"
 	if [ "$VALID" = "valid" ]; then
 		TAG='.*'
-		create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+		create_temp_deck
 	else
 		echo "$VALID\033[5;31m, switching back to previous deck"
 		DECK=$OLD_DECK
@@ -235,11 +239,12 @@ TAG='.*'
 
 IMPORTFLAG=
 TOTALRECALLFLAG=
+AHEADDAYS=
 RESCHEDULEFLAG=1
 ZENFLAG=
 STDINFLAG=
 if [ -t 0 ]; then STDINFLAG=0; else STDINFLAG=1; fi
-while getopts i:d:f:htrz name
+while getopts i:d:f:a:htrz name
 do
     case $name in
     d)
@@ -255,6 +260,14 @@ do
 	IMPORT="$OPTARG";;
     t)
 	TOTALRECALLFLAG=1;;
+    a)
+	if ! [ "$OPTARG" -eq "$OPTARG" ] 2> /dev/null; then
+		printf "\033[5;31mArgument for total recall mode is not an integer: %s\033[0m\n" "$OPTARG"
+		exit 1;
+	else
+		AHEADDAYS="$OPTARG"
+	fi
+	;;
     r)
 	RESCHEDULEFLAG=0;;
     z)
@@ -262,9 +275,10 @@ do
     f)
 	TAG="$OPTARG";;
     h|?)
-	printf "Usage: %s: [-h] [-t] [-r] [-d deckfile] [-f tagregex] [-i cardfile]
+	printf "Usage: %s: [-h] [-t] [-r] [-d deckfile] [-f tagregex] [-i cardfile] [-a days]
 	-h\thelp
 	-t\ttotal recall mode (due date ignored)
+	-a\treview ahead by n days
 	-r\tno rescheduling (deck is left unchanged)
 	-z\tzen mode (screen clears between each review)
 	-d\tselect deck file (default is db.tsv)
@@ -273,13 +287,19 @@ do
 	exit 2;;
     esac
 done
+
+if [ "$TOTALRECALLFLAG" = "1" ] && [ -n "$AHEADDAYS" ]; then
+	printf "\033[5;31mCannot combine total recall mode and review ahead\033[0m\n"
+	exit 2
+fi
+
 if [ -n "$IMPORTFLAG" ]; then
 	import "$IMPORT"
 else
 	validate_deck "$DECK"
 	if [ "$VALID" = "valid" ]; then
 		printf '🐚 \033[1;35mmakigai \033[7;35mv0.0.1\n\033[0m\033[2;37mtype h for help\n\033[0m'
-		create_temp_deck "$TAG" "$DECK" "$TOTALRECALLFLAG"
+		create_temp_deck
 		main
 	else
 		echo "$VALID"
