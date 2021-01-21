@@ -5,9 +5,9 @@ A minimalist anki alternative written in POSIX shell. No dependencies (besides G
 * Select between multiple decks
 * Filter review queue by tag
 * Total recall mode (ignore due dates and consider all cards)
+* Review ahead by *n* days
 * No reschedule mode (don't update db with new due date)
 * Both import and review functionality can read from stdin (useful when using in scripts)
 
 ## Planned features
-* Review ahead by *n* days
 * Better stats/reports
