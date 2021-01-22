@@ -78,17 +78,14 @@ SM2() {
 		3|4|5 )
 			if [ $REPETITION = 0 ]; then
 				INTERVAL=1
-
 			elif [ $REPETITION = 1 ]; then
 				INTERVAL=6
-
 			elif [ $REPETITION -gt 1 ]; then
 				INTERVAL=$(echo "if ( $INTERVAL*$EASINESS%1 ) ($INTERVAL*$EASINESS)/1 + 1 else ($INTERVAL*$EASINESS)/1" | bc)
 			fi
 
 			EASINESS=$(echo "$EASINESS + (0.1 - (5 - $GRADE) * (0.08 + (5 - $GRADE) * 0.02))" | bc)
-			if [ "$(echo "$EASINESS < 1.3" | bc)" = 1 ]
-			then
+			if [ "$(echo "$EASINESS < 1.3" | bc)" = 1 ]; then
 				EASINESS=1.3
 			fi
 			REPETITION=$(echo "$REPETITION+1" | bc);;
@@ -145,7 +142,7 @@ review() {
 				echo "$SEPARATOR"
 			fi
 		done
-		if [ "$RESCHEDULEFLAG" != "0" ] && [ -z "$AHEADDAYS" ] && [ "$TOTALRECALLFLAG" -ne 1 ]; then 
+		if [ "$RESCHEDULEFLAG" != "0" ] && [ -z "$AHEADDAYS" ] && [ "$TOTALRECALLFLAG" != "1" ]; then
 			create_temp_deck
 		fi
 	else
@@ -275,15 +272,15 @@ do
     f)
 	TAG="$OPTARG";;
     h|?)
-	printf "Usage: %s: [-h] [-t] [-r] [-d deckfile] [-f tagregex] [-i cardfile] [-a days]
-	-h\thelp
-	-t\ttotal recall mode (due date ignored)
-	-a\treview ahead by n days
-	-r\tno rescheduling (deck is left unchanged)
-	-z\tzen mode (screen clears between each review)
-	-d\tselect deck file (default is db.tsv)
-	-f\tfilter deck by tag (default is all tags)
-	-i\timport mode (takes in tsv of front, back, and tags)\n" "$0"
+	printf "Usage: %s: [-h] [-t] [-r] [-z] [-d deckfile] [-f tagregex] [-i cardfile] [-a days]
+   -t\ttotal recall mode (due date ignored)
+   -a\treview ahead by n days
+   -r\tno rescheduling (deck is left unchanged)
+   -z\tzen mode (screen clears between each review)
+   -d\tselect deck file (default is db.tsv)
+   -f\tfilter deck by tag (default is all tags)
+   -i\timport mode (takes in tsv of front, back, and tags)
+   -h\thelp\n" "$0"
 	exit 2;;
     esac
 done
